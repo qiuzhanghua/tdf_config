@@ -22,8 +22,8 @@ pub trait DataSource {
     // ManageConnection
     fn get_url(&self) -> String;
     fn get_pool(&mut self) -> PooledConnection<Self::MC>
-        where
-            Self::MC: r2d2::ManageConnection;
+    where
+        Self::MC: r2d2::ManageConnection;
 }
 
 #[derive(Debug, Clone)]
@@ -143,7 +143,7 @@ pub fn get_connection() -> PooledConnection<MysqlConnectionManager> {
 
 #[cfg(feature = "with-mysql")]
 lazy_static! {
-    pub static ref DATASOURCE : MysqlDataSource = {
+    pub static ref DATASOURCE: MysqlDataSource = {
         dotenv::dotenv().ok();
         let db_url = dotenv::var("MYSQL_URL").expect("MYSQL_URL must be set");
         MysqlDataSource::new(db_url)
@@ -168,18 +168,16 @@ pub fn get_connection() -> PooledConnection<PostgresConnectionManager<NoTls>> {
 
 #[cfg(feature = "with-postgres")]
 lazy_static! {
-    pub static ref DATASOURCE : PostgresDataSource = {
+    pub static ref DATASOURCE: PostgresDataSource = {
         dotenv::dotenv().ok();
         let db_url = dotenv::var("POSTGRESQL_URL").expect("POSTGRESQL_URL must be set");
         PostgresDataSource::new(db_url)
     };
 }
 
-
 #[cfg(test)]
 mod tests {
-    use r2d2::{PooledConnection, ManageConnection};
-    use crate::{postgres_connection, mysql_connection, RedisDataSource};
+    use crate::{mysql_connection, postgres_connection, RedisDataSource};
 
     #[test]
     fn test_data_source() {
