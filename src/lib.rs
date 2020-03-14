@@ -21,15 +21,15 @@ pub trait DataSource {
     type MC;
     // ManageConnection
     fn get_url(&self) -> String;
-    fn get_pool(&mut self) -> PooledConnection<Self::MC>
+    fn get_pool(&self) -> PooledConnection<Self::MC>
     where
         Self::MC: r2d2::ManageConnection;
 }
 
 #[derive(Debug, Clone)]
 pub struct MysqlDataSource {
-    url: String,
-    pool: Pool<MysqlConnectionManager>,
+    pub url: String,
+    pub pool: Pool<MysqlConnectionManager>,
 }
 
 impl MysqlDataSource {
@@ -54,15 +54,15 @@ impl DataSource for MysqlDataSource {
         self.url.to_string()
     }
 
-    fn get_pool(&mut self) -> PooledConnection<Self::MC> {
+    fn get_pool(&self) -> PooledConnection<Self::MC> {
         self.pool.get().unwrap()
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct PostgresDataSource {
-    url: String,
-    pool: Pool<PostgresConnectionManager<NoTls>>,
+    pub url: String,
+    pub pool: Pool<PostgresConnectionManager<NoTls>>,
 }
 
 impl PostgresDataSource {
@@ -85,15 +85,15 @@ impl DataSource for PostgresDataSource {
         self.url.to_string()
     }
 
-    fn get_pool(&mut self) -> PooledConnection<Self::MC> {
+    fn get_pool(&self) -> PooledConnection<Self::MC> {
         self.pool.get().unwrap()
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct RedisDataSource {
-    url: String,
-    pool: Pool<RedisConnectionManager>,
+    pub url: String,
+    pub pool: Pool<RedisConnectionManager>,
 }
 
 impl RedisDataSource {
@@ -114,7 +114,7 @@ impl DataSource for RedisDataSource {
         self.url.to_string()
     }
 
-    fn get_pool(&mut self) -> PooledConnection<Self::MC> {
+    fn get_pool(&self) -> PooledConnection<Self::MC> {
         self.pool.get().unwrap()
     }
 }
