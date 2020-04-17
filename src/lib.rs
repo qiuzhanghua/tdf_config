@@ -4,262 +4,176 @@
 #[macro_use]
 extern crate lazy_static;
 
-pub const DB_POOL_SIZE: u32 = 8;
+pub const MAX_POOL_SIZE: u32 = 64;
+pub const MIN_POOL_SIZE: u32 = 8;
+
 pub const REDIS_POOL_SIZE: u32 = 32;
 
-use postgres::NoTls;
-use r2d2;
-use r2d2::{Pool, PooledConnection};
-use r2d2_mysql;
-use r2d2_mysql::mysql::{Opts, OptsBuilder};
-use r2d2_mysql::MysqlConnectionManager;
-use r2d2_postgres::PostgresConnectionManager;
+use r2d2::PooledConnection;
 use r2d2_redis::RedisConnectionManager;
+use sqlx::{Connect, MySqlConnection, MySqlPool, PgConnection, PgPool};
 
 /// 数据源
 pub trait DataSource {
-    type MC;
-    // ManageConnection
+    type C;
     fn get_url(&self) -> String;
-    fn get_pool(&self) -> PooledConnection<Self::MC>
-    where
-        Self::MC: r2d2::ManageConnection;
+    fn get_pool(&mut self) -> sqlx::Pool<Self::C>
+        where
+            Self::C: Connect;
 }
 
 #[derive(Debug, Clone)]
 pub struct MysqlDataSource {
-    pub url: String,
-    pub pool: Pool<MysqlConnectionManager>,
-}
-
-impl MysqlDataSource {
-    pub fn new(url: String) -> Self {
-        let opts = Opts::from_url(&url).unwrap();
-        let builder = OptsBuilder::from_opts(opts);
-        let manager = MysqlConnectionManager::new(builder);
-        MysqlDataSource {
-            url,
-            pool: r2d2::Pool::builder()
-                .max_size(DB_POOL_SIZE)
-                .build(manager)
-                .unwrap(),
-        }
-    }
+    url: String,
+    pool: sqlx::Pool<MySqlConnection>,
 }
 
 impl DataSource for MysqlDataSource {
-    type MC = MysqlConnectionManager;
-
+    type C = MySqlConnection;
     fn get_url(&self) -> String {
         self.url.to_string()
     }
-
-    fn get_pool(&self) -> PooledConnection<Self::MC> {
-        self.pool.get().unwrap()
+    fn get_pool(&mut self) -> sqlx::Pool<Self::C> {
+        self.pool.clone()
     }
+}
+
+pub async fn mysql_data_source() -> MysqlDataSource {
+    dotenv::dotenv().ok();
+    let url = std::env::var("MYSQL_URL").expect("MYSQL_URL must be set");
+    let max_pool_size: u32 = std::env::var("MYSQL_MAX_POOL_SIZE")
+        .unwrap_or_else(|_| MAX_POOL_SIZE.to_string())
+        .parse::<u32>()
+        .unwrap_or(MAX_POOL_SIZE);
+    let min_pool_size: u32 = std::env::var("MYSQL_MIN_POOL_SIZE")
+        .unwrap_or_else(|_| MIN_POOL_SIZE.to_string())
+        .parse::<u32>()
+        .unwrap_or(MIN_POOL_SIZE);
+
+    let pool: sqlx::MySqlPool = sqlx::Pool::builder()
+        .max_size(max_pool_size)
+        .min_size(min_pool_size)
+        .build(&url)
+        .await
+        .unwrap();
+    MysqlDataSource { url, pool }
 }
 
 #[derive(Debug, Clone)]
-pub struct PostgresDataSource {
+pub struct PgDataSource {
     pub url: String,
-    pub pool: Pool<PostgresConnectionManager<NoTls>>,
+    pub pool: sqlx::Pool<PgConnection>,
 }
 
-impl PostgresDataSource {
-    pub fn new(url: String) -> Self {
-        let manager = PostgresConnectionManager::new(url.parse().unwrap(), NoTls);
-        PostgresDataSource {
-            url,
-            pool: r2d2::Pool::builder()
-                .max_size(DB_POOL_SIZE)
-                .build(manager)
-                .unwrap(),
-        }
-    }
-}
-
-impl DataSource for PostgresDataSource {
-    type MC = PostgresConnectionManager<NoTls>;
+impl DataSource for PgDataSource {
+    type C = PgConnection;
 
     fn get_url(&self) -> String {
         self.url.to_string()
     }
 
-    fn get_pool(&self) -> PooledConnection<Self::MC> {
-        self.pool.get().unwrap()
+    fn get_pool(&mut self) -> sqlx::Pool<Self::C> {
+        self.pool.clone()
     }
+}
+
+pub async fn pg_data_source() -> PgDataSource {
+    dotenv::dotenv().ok();
+    let url = std::env::var("PG_URL").expect("PG_URL must be set");
+    let max_pool_size: u32 = std::env::var("PG_MAX_POOL_SIZE")
+        .unwrap_or_else(|_| MAX_POOL_SIZE.to_string())
+        .parse::<u32>()
+        .unwrap_or(MAX_POOL_SIZE);
+    let min_pool_size: u32 = std::env::var("PG_MIN_POOL_SIZE")
+        .unwrap_or_else(|_| MIN_POOL_SIZE.to_string())
+        .parse::<u32>()
+        .unwrap_or(MIN_POOL_SIZE);
+
+    let pool: sqlx::PgPool = sqlx::Pool::builder()
+        .max_size(max_pool_size)
+        .min_size(min_pool_size)
+        .build(&url)
+        .await
+        .unwrap();
+    PgDataSource { url, pool }
 }
 
 #[derive(Debug, Clone)]
 pub struct RedisDataSource {
     pub url: String,
-    pub pool: Pool<RedisConnectionManager>,
+    pub pool: r2d2::Pool<RedisConnectionManager>,
 }
 
 impl RedisDataSource {
-    pub fn new(url: String) -> Self {
-        let manager = RedisConnectionManager::new(url.clone()).unwrap();
-        let pool = r2d2::Pool::builder()
-            .max_size(REDIS_POOL_SIZE)
-            .build(manager)
-            .unwrap();
-        RedisDataSource { url, pool }
-    }
-}
-
-impl DataSource for RedisDataSource {
-    type MC = RedisConnectionManager;
-
     fn get_url(&self) -> String {
         self.url.to_string()
     }
-
-    fn get_pool(&self) -> PooledConnection<Self::MC> {
-        self.pool.get().unwrap()
+    fn get_pool(self) -> r2d2::Pool<RedisConnectionManager> {
+        self.pool.clone()
     }
 }
 
-pub fn redis_connection() -> RedisDataSource {
+pub fn redis_data_source() -> RedisDataSource {
     dotenv::dotenv().ok();
-    let redis_url = dotenv::var("REDIS_URL").expect("REDIS_URL must be set");
-    RedisDataSource::new(redis_url)
-}
-
-pub fn mysql_connection() -> MysqlDataSource {
-    dotenv::dotenv().ok();
-    let db_url = dotenv::var("MYSQL_URL").expect("MYSQL_URL must be set");
-    MysqlDataSource::new(db_url)
+    let url = std::env::var("REDIS_URL").expect("REDIS_URL must be set");
+    let manager = RedisConnectionManager::new(url.clone()).unwrap();
+    let redis_pool_size = std::env::var("REDIS_POOL_SIZE")
+        .unwrap_or_else(|_| REDIS_POOL_SIZE.to_string())
+        .parse::<u32>()
+        .unwrap_or(REDIS_POOL_SIZE);
+    let pool = r2d2::Pool::builder()
+        .max_size(redis_pool_size)
+        .build(manager)
+        .unwrap();
+    RedisDataSource { url, pool }
 }
 
 #[cfg(feature = "with-mysql")]
-pub fn establish_connection() -> MysqlDataSource {
-    mysql_connection()
-}
-
+type TdfDataSource = MysqlDataSource;
+#[cfg(feature = "with-postgres")]
+type TdfDataSource = PgDataSource;
 #[cfg(feature = "with-mysql")]
-pub fn get_connection() -> PooledConnection<MysqlConnectionManager> {
-    DATASOURCE.pool.get().unwrap()
-}
-
-#[cfg(feature = "with-mysql")]
-lazy_static! {
-    pub static ref DATASOURCE: MysqlDataSource = {
-        dotenv::dotenv().ok();
-        let db_url = dotenv::var("MYSQL_URL").expect("MYSQL_URL must be set");
-        MysqlDataSource::new(db_url)
-    };
-}
-
-pub fn postgres_connection() -> PostgresDataSource {
-    dotenv::dotenv().ok();
-    let db_url = dotenv::var("POSTGRESQL_URL").expect("POSTGRESQL_URL must be set");
-    PostgresDataSource::new(db_url)
-}
-
+type TdfPool = MySqlPool;
 #[cfg(feature = "with-postgres")]
-pub fn establish_connection() -> PostgresDataSource {
-    postgres_connection()
-}
-
-#[cfg(feature = "with-postgres")]
-pub fn get_connection() -> PooledConnection<PostgresConnectionManager<NoTls>> {
-    DATASOURCE.pool.get().unwrap()
-}
-
-#[cfg(feature = "with-postgres")]
-lazy_static! {
-    pub static ref DATASOURCE: PostgresDataSource = {
-        dotenv::dotenv().ok();
-        let db_url = dotenv::var("POSTGRESQL_URL").expect("POSTGRESQL_URL must be set");
-        PostgresDataSource::new(db_url)
-    };
-}
+type TdfPool = PgPool;
 
 #[cfg(test)]
 mod tests {
-    use crate::{mysql_connection, postgres_connection, RedisDataSource};
+    use crate::{mysql_data_source, pg_data_source, redis_data_source, DataSource};
+    use r2d2::PooledConnection;
+    use r2d2_redis::RedisConnectionManager;
+    use sqlx::prelude::*;
+    use std::ops::Deref;
 
-    #[test]
-    fn test_data_source() {
-        let redis_data_source = RedisDataSource::new("redis://localhost/0".to_string());
+    #[tokio::test]
+    async fn test_data_source() {
+        let redis_data_source = redis_data_source();
         println!("{:?}", redis_data_source);
-        let my_data_source = mysql_connection();
+        let mut pool = redis_data_source.get_pool();
+        let mut conn: PooledConnection<RedisConnectionManager> = pool.get().unwrap();
+        let reply = redis::cmd("PING").query::<String>(&mut *conn).unwrap();
+
+        assert_eq!("PONG", reply);
+
+        let mut my_data_source = mysql_data_source().await;
         println!("{:?}", my_data_source);
-        let pg_data_source = postgres_connection();
+        let pool = my_data_source.get_pool();
+        println!("{:?}", pool);
+
+        let mut cursor = sqlx::query(r#"SELECT version() v"#).fetch(&pool);
+        let row = cursor.next().await.unwrap().unwrap();
+        let version = row.get::<&str, &str>("v").to_string();
+        println!("{:?}", version);
+
+        let mut pg_data_source = pg_data_source().await;
         println!("{:?}", pg_data_source);
+        let pool = pg_data_source.get_pool();
+        println!("{:?}", pool);
+
+        let mut cursor = sqlx::query(r#"SELECT version() v"#).fetch(&pool);
+        let row = cursor.next().await.unwrap().unwrap();
+        let version = row.get::<&str, &str>("v").to_string();
+        println!("{:?}", version);
+        assert!(version.len() > 0)
     }
 }
-
-//        let mut obj:Box<dyn DataSource<PC=MysqlConnectionManager>> = Box::new(my_data_source);
-// let mut obj = Box::new(my_data_source) as Box<dyn DataSource<PC=MysqlConnectionManager>>;
-//        let p = obj.get_pool();
-//         let p = my_data_source.get_version();
-//         println!("{:?}", p);
-// let mut config = Config {
-//     data_source: Box::new(
-//         (MysqlDataSource::new(
-//             "mysql://app:app@localhost:3306/app?tcp_connect_timeout_ms=5000".to_string(),
-//         )),
-//     ),
-// };
-//
-// let mut dao= MysqlDao::new(config);
-// let v = dao.get_version();
-// println!("{:?}", v);
-
-//pub trait Dao<T> {}
-
-// pub struct MysqlDao {
-// //    config: Config<T>,
-//     pool: PooledConnection<MysqlConnectionManager>,
-// }
-
-// impl MysqlDao<PooledConnection<MysqlConnectionManager>> {
-//     fn new(mut config: Config<MysqlConnectionManager>) -> Self {
-//         MysqlDao { pool: config.data_source.get_pool()}
-//     }
-// }
-//
-// impl Repository for MysqlDataSource {
-//     fn get_version(&mut self) -> std::result::Result<String, Box<dyn std::error::Error>> {
-//         let mut conn = self.pool.get().unwrap();
-//         match conn.query(r#"select version() v"#).and_then(|mut qr| {
-//             let row = qr.next().unwrap();
-//             row.map(|x| from_row::<String>(x))
-//         }) {
-//             Ok(s) => Ok(s),
-//             Err(e) => Err(Box::<dyn std::error::Error>::from("table name error"))
-//         }
-//     }
-// }
-
-// impl Repository for PostgresDataSource {
-//     fn get_version(&mut self) -> std::result::Result<String, Box<dyn std::error::Error>> {
-//         let mut conn = self.pool.get().unwrap();
-//         let v = conn.query(r#"select version() v"#, &[]).unwrap()[0].get::<usize, String>(0);
-//         Ok(v)
-//         // match conn.query(r#"select version() v"#, &[]).and_then(|mut qr| {
-//         //     let row = qr.next().unwrap();
-//         //     row.map(|x| from_row::<String>(x))
-//         // }) {
-//         //     Ok(s) => Ok(s),
-//         //     Err(e) => Err(Box::<dyn std::error::Error>::from("table name error"))
-//         // }
-//     }
-// }
-
-// #[derive(Debug)]
-// pub enum DS {
-//     My(MysqlDataSource),
-//     Pg(PostgresDataSource),
-// }
-//
-// impl Repository for DS {
-//     fn get_version(&mut self) -> Result<String, Box<dyn std::error::Error>> {
-//        match self {
-//            DS::My(ds) => ds.get_version(),
-//            DS::Pg(ds) => ds.get_version(),
-//
-//        }
-//     }
-// }

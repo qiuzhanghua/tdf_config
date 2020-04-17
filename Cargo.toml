@@ -1,6 +1,6 @@
 [package]
 name = "tdf_config"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["qiuzhanghua <qiuzhanghua@icloud.com>"]
 edition = "2018"
 
@@ -11,26 +11,32 @@ serde_json = "1.0"
 json = "0.12"
 lazy_static = "1.4"
 cfg-if = "0.1"
-r2d2 = "0.8"
-r2d2_mysql = {version = "17"}
-r2d2_postgres = {version = "0.16"}
-r2d2_sqlite = "0.14"
-r2d2_redis = {version = "0.13"}
-mysql = {version = "17"}
-postgres = {version = "0.17"}
-tokio-postgres = "0.5"
-postgres-shared = {version = "0.4", optional = true}
-postgres-types = { version = "0.1", features = ["with-chrono-0_4"], optional = true}
+uuid = { version = "0.8", features = ["serde", "v4", "v5"] }
+chrono = { version = "0.4", features = ["serde"] }
+sha2 = "0.8" # https://github.com/RustCrypto/hashes
+futures = "0.3"
+tokio = { version = "0.2", features = ["full"] }
+r2d2 = { version = "0.8", optional = true}
+redis = { version = "0.15", optional = true}
+r2d2_redis = { version = "0.13", optional = true }
+async-native-tls = { version = "0.3", default-features = false, features = [ "runtime-tokio" ] }
+sqlite = { version = "0.25", optional = true }
+mysql = { version = "18", optional = true }
+postgres = { version = "0.17", optional = true }
+postgres-shared = { version ="0.4", optional = true }
+postgres-types = { version = "0.1", features = ["with-chrono-0_4"], optional = true }
 # ["postgres-derive"]["bit-vec-06"]["chrono-04"]["eui48-04"]["geo-types-04"]
 # ["serde-1", "serde_json-1"]with-time-0_2 = ["time-02"]with-uuid-0_8 = ["uuid-08"]
 
-uuid = {version = "0.8", features = ["serde", "v4", "v5"]}
-chrono = { version = "0.4", features = ["serde"] }
-sha2 = "0.8" # https://github.com/RustCrypto/hashes
+sqlx-core = { version = "0.3", default-features = false, features = [ "runtime-tokio" ] }
+[dependencies.sqlx]
+version = "0.3"
+default-features = false
+features = [ "runtime-tokio", "macros", "postgres", "mysql", "sqlite",  "uuid", "chrono", "bigdecimal", "json", "ipnetwork", "tls"]
 
 [features]
-# default = ["with-postgres", "with-redis"]
+default = ["with-postgres", "with-redis"]
 with-postgres = ["postgres-shared", "postgres-types"]
-# with-sqlite = ["rusqlite","r2d2_sqlite"]
+# with-sqlite = ["rusqlite"]
 with-mysql = []
-with-redis = []
+with-redis = ["r2d2", "redis", "r2d2_redis"]
