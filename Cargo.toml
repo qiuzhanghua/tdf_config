@@ -1,6 +1,6 @@
 [package]
 name = "tdf_config"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["qiuzhanghua <qiuzhanghua@icloud.com>"]
 edition = "2018"
 
