@@ -18,7 +18,7 @@ pub trait DataSource {
     type C;
     fn get_url(&self) -> String;
     fn get_pool(&mut self) -> sqlx::Pool<Self::C>
-y    where
+    where
         Self::C: Connect;
 }
 
