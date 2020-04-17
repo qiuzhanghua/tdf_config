@@ -18,17 +18,17 @@ pub trait DataSource {
     type C;
     fn get_url(&self) -> String;
     fn get_pool(&mut self) -> sqlx::Pool<Self::C>
-        where
-            Self::C: Connect;
+y    where
+        Self::C: Connect;
 }
 
 #[derive(Debug, Clone)]
-pub struct MysqlDataSource {
+pub struct MySqlDataSource {
     url: String,
     pool: sqlx::Pool<MySqlConnection>,
 }
 
-impl DataSource for MysqlDataSource {
+impl DataSource for MySqlDataSource {
     type C = MySqlConnection;
     fn get_url(&self) -> String {
         self.url.to_string()
@@ -38,7 +38,7 @@ impl DataSource for MysqlDataSource {
     }
 }
 
-pub async fn mysql_data_source() -> MysqlDataSource {
+pub async fn mysql_data_source() -> MySqlDataSource {
     dotenv::dotenv().ok();
     let url = std::env::var("MYSQL_URL").expect("MYSQL_URL must be set");
     let max_pool_size: u32 = std::env::var("MYSQL_MAX_POOL_SIZE")
@@ -56,7 +56,7 @@ pub async fn mysql_data_source() -> MysqlDataSource {
         .build(&url)
         .await
         .unwrap();
-    MysqlDataSource { url, pool }
+    MySqlDataSource { url, pool }
 }
 
 #[derive(Debug, Clone)]
@@ -129,7 +129,7 @@ pub fn redis_data_source() -> RedisDataSource {
 }
 
 #[cfg(feature = "with-mysql")]
-type TdfDataSource = MysqlDataSource;
+type TdfDataSource = MySqlDataSource;
 #[cfg(feature = "with-postgres")]
 type TdfDataSource = PgDataSource;
 #[cfg(feature = "with-mysql")]
@@ -174,6 +174,27 @@ mod tests {
         let row = cursor.next().await.unwrap().unwrap();
         let version = row.get::<&str, &str>("v").to_string();
         println!("{:?}", version);
-        assert!(version.len() > 0)
+        assert!(version.len() > 0);
+        // let version = my_data_source.get_version().await;
+        // assert_eq!(version.is_ok(), true);
     }
 }
+
+// impl MySqlDataSource {
+//     async fn get_version(&mut self) -> std::result::Result<String, Box<dyn std::error::Error>> {
+//         use sqlx::mysql::MySqlRow;
+//         use sqlx::prelude::*;
+//         use sqlx_core::mysql::MySqlCursor;
+//
+//         let mut cursor: MySqlCursor = sqlx::query(r#"SELECT version() v"#).fetch(&self.pool);
+//         //        let row: MySqlRow = cursor.next().await.unwrap().unwrap();
+//         let row = cursor.next().await;
+//         match row {
+//             Ok(r) => {
+//                 let version = r.unwrap().get::<&str, &str>("v").to_string();
+//                 Ok(version)
+//             }
+//             Err(e) => Err(Box::<dyn std::error::Error>::from(e)),
+//         }
+//     }
+// }
