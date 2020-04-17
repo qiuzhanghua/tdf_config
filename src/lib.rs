@@ -113,18 +113,41 @@ impl RedisDataSource {
     }
 }
 
+#[cfg(feature = "with-redis")]
+lazy_static! {
+    pub static ref REDIS_POOL: r2d2::Pool<r2d2_redis::RedisConnectionManager> = {
+        dotenv::dotenv().ok();
+        let redis_url = std::env::var("REDIS_URL").expect("REDIS_URL must be set");
+        let manager = r2d2_redis::RedisConnectionManager::new(redis_url).unwrap();
+        r2d2::Pool::builder()
+            .max_size(REDIS_POOL_SIZE)
+            .build(manager)
+            .expect("Failed to create redis pool.")
+    };
+
+    // Used to update core data into redis master, such as person, role and dept etc.
+    // pub static ref MASTER_REDIS_POOL: Pool<r2d2_redis::RedisConnectionManager> = {
+    //     dotenv().ok();
+    //     let redis_url = env::var("MASTER_REDIS_URL").expect("MASTER_REDIS_URL must be set");
+    //     let manager = r2d2_redis::RedisConnectionManager::new(redis_url).unwrap();
+    //     r2d2::Pool::builder()
+    //         .max_size(REDIS_POOL_SIZE)
+    //         .build(manager)
+    //         .expect("Failed to create master redis pool.")
+    // };
+
+}
+
+#[cfg(feature = "with-redis")]
+pub fn get_redis_connection() -> PooledConnection<r2d2_redis::RedisConnectionManager> {
+    REDIS_POOL.clone().get().unwrap()
+}
+
+#[cfg(feature = "with-redis")]
 pub fn redis_data_source() -> RedisDataSource {
     dotenv::dotenv().ok();
     let url = std::env::var("REDIS_URL").expect("REDIS_URL must be set");
-    let manager = RedisConnectionManager::new(url.clone()).unwrap();
-    let redis_pool_size = std::env::var("REDIS_POOL_SIZE")
-        .unwrap_or_else(|_| REDIS_POOL_SIZE.to_string())
-        .parse::<u32>()
-        .unwrap_or(REDIS_POOL_SIZE);
-    let pool = r2d2::Pool::builder()
-        .max_size(redis_pool_size)
-        .build(manager)
-        .unwrap();
+    let pool = REDIS_POOL.clone();
     RedisDataSource { url, pool }
 }
 

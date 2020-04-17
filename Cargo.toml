@@ -1,6 +1,6 @@
 [package]
 name = "tdf_config"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["qiuzhanghua <qiuzhanghua@icloud.com>"]
 edition = "2018"
 
@@ -38,5 +38,5 @@ features = [ "runtime-tokio", "macros", "postgres", "mysql", "sqlite",  "uuid", 
 default = ["with-postgres", "with-redis"]
 with-postgres = ["postgres-shared", "postgres-types"]
 # with-sqlite = ["rusqlite"]
-with-mysql = []
+with-mysql = ["mysql"]
 with-redis = ["r2d2", "redis", "r2d2_redis"]
