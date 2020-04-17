@@ -105,10 +105,10 @@ pub struct RedisDataSource {
 }
 
 impl RedisDataSource {
-    fn get_url(&self) -> String {
+    pub fn get_url(&self) -> String {
         self.url.to_string()
     }
-    fn get_pool(self) -> r2d2::Pool<RedisConnectionManager> {
+    pub fn get_pool(self) -> r2d2::Pool<RedisConnectionManager> {
         self.pool.clone()
     }
 }
