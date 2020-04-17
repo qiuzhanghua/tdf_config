@@ -129,13 +129,25 @@ pub fn redis_data_source() -> RedisDataSource {
 }
 
 #[cfg(feature = "with-mysql")]
-type TdfDataSource = MySqlDataSource;
+pub type TdfDataSource = MySqlDataSource;
 #[cfg(feature = "with-postgres")]
-type TdfDataSource = PgDataSource;
+pub type TdfDataSource = PgDataSource;
 #[cfg(feature = "with-mysql")]
-type TdfPool = MySqlPool;
+
+#[cfg(feature = "with-mysql")]
+pub async fn data_source() -> TdfDataSource {
+    mysql_data_source().await
+}
 #[cfg(feature = "with-postgres")]
-type TdfPool = PgPool;
+pub async fn data_source() -> TdfDataSource {
+    pg_data_source().await
+}
+
+
+#[cfg(feature = "with-mysql")]
+pub type TdfPool = MySqlPool;
+#[cfg(feature = "with-postgres")]
+pub type TdfPool = PgPool;
 
 #[cfg(test)]
 mod tests {
@@ -149,7 +161,7 @@ mod tests {
     async fn test_data_source() {
         let redis_data_source = redis_data_source();
         println!("{:?}", redis_data_source);
-        let mut pool = redis_data_source.get_pool();
+        let pool = redis_data_source.get_pool();
         let mut conn: PooledConnection<RedisConnectionManager> = pool.get().unwrap();
         let reply = redis::cmd("PING").query::<String>(&mut *conn).unwrap();
 
