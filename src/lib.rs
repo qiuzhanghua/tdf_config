@@ -26,8 +26,8 @@ pub trait DataSource {
 
 #[derive(Debug, Clone)]
 pub struct MySqlDataSource {
-    url: String,
-    pool: sqlx::Pool<MySqlConnection>,
+    pub url: String,
+    pub pool: sqlx::Pool<MySqlConnection>,
 }
 
 impl DataSource for MySqlDataSource {
