@@ -12,6 +12,8 @@ pub const REDIS_POOL_SIZE: u32 = 32;
 use r2d2::PooledConnection;
 use r2d2_redis::RedisConnectionManager;
 use sqlx::{Connect, MySqlConnection, MySqlPool, PgConnection, PgPool};
+use sqlx_core::postgres::PgCursor;
+use sqlx_core::mysql::MySqlCursor;
 
 /// 数据源
 pub trait DataSource {
@@ -171,6 +173,12 @@ pub async fn data_source() -> TdfDataSource {
 pub type TdfPool = MySqlPool;
 #[cfg(feature = "with-postgres")]
 pub type TdfPool = PgPool;
+
+
+#[cfg(feature = "with-mysql")]
+pub type TdfCursor<'c, 'q> = MySqlCursor<'c, 'q>;
+#[cfg(feature = "with-postgres")]
+pub type TdfCursor<'c, 'q> = PgCursor<'c, 'q>;
 
 #[cfg(test)]
 mod tests {
