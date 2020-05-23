@@ -1,8 +1,13 @@
 [package]
 name = "tdf_config"
-version = "0.2.7"
+version = "0.2.8"
 authors = ["qiuzhanghua <qiuzhanghua@icloud.com>"]
 edition = "2018"
+license = "MIT OR Apache-2.0"
+description = "TDF config for DB and Redis"
+homepage = "https://github.com/qiuzhanghua/tdf_config/"
+repository = "https://github.com/qiuzhanghua/tdf_config/"
+readme = "README.md"
 
 [dependencies]
 dotenv = "0.15"
